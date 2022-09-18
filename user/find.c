@@ -4,8 +4,8 @@
 #include "kernel/fs.h"
 
 //inspired by user/ls.c
-//close a doc after using, otherwise it will occupy system recourse
-//没考虑没有找到的情况
+//close a doc after using, otherwise it will occupy system resourse
+//it will not output anything, when we find nothing
 
 //get doc's name from it's path
 char*
@@ -26,7 +26,7 @@ void find(char *path, char *target){
     struct dirent de;
     struct stat st;
     
-    //robust
+    //鲁棒性
     if((fd = open(path, 0)) < 0){
         fprintf(2, "find: cannot open %s\n", path);
         return;

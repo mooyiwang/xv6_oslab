@@ -26,6 +26,7 @@ int main(int argc,char* argv[]){
         exit(0);
     }
     else{
+        //parent process
         int parent_pid = getpid();
         char *from_child[4];
         close(parent_to_child[0]);
