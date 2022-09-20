@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 
         p = buf;
         q = buf;
-        // extract args from stdin, 从stdin读入的是“一整块”（当管道发送端发送多行时）， 借助\0判断是否有多行， 空格分参数
+        // extract args from stdin, 从stdin读入的是“一整块”（当管道发送端发送多行时,管道读出的是全部数据）， 借助\0判断是否有多行， 空格分参数
         for (; p[0] != '\0';)
         {
             i = argc - 1;

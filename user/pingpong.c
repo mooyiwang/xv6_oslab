@@ -15,7 +15,7 @@ int main(int argc,char* argv[]){
     if(fork() == 0){
         //child process
         int child_pid = getpid();
-        char from_parent[4];
+        char from_parent[5];
         close(parent_to_child[1]);
         read(parent_to_child[0], from_parent, 4);
         close(parent_to_child[0]);
@@ -28,7 +28,7 @@ int main(int argc,char* argv[]){
     else{
         //parent process
         int parent_pid = getpid();
-        char *from_child[4];
+        char from_child[5];
         close(parent_to_child[0]);
         write(parent_to_child[1], "ping", 4);
         close(parent_to_child[1]);
