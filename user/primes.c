@@ -86,6 +86,8 @@ int main(int argc,char* argv[]){
                                         int p10[2];
                                         pipe(p10);
                                         if(fork() == 0){
+                                            //process-11
+                                            //print 29
                                             close(p10[1]);
                                             read(p10[0], num, sizeof(num));
                                             int out = num[0];
@@ -95,6 +97,8 @@ int main(int argc,char* argv[]){
                                             int p11[2];
                                             pipe(p11);
                                             if(fork() == 0){
+                                                //process-12
+                                                //print 31
                                                 close(p11[1]);
                                                 read(p11[0], num, sizeof(num));
                                                 int out = num[0];
@@ -105,6 +109,7 @@ int main(int argc,char* argv[]){
                                             close(p11[0]);
                                             while(read(p10[0], num, sizeof(num))){
                                                 if(num[0]%out != 0){
+                                                    //sent 31 to process-13
                                                     write(p11[1], num, sizeof(num));
                                                 }
                                             }
