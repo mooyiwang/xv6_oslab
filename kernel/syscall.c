@@ -168,12 +168,10 @@ syscall(void)
   struct proc *p = myproc();
 
   int mask;
-  // char arg0[512];
   int arg0;
   int return_value;
   int pid;
   int mask_try;
-  // argstr(0, arg0, len(arg0)*sizeof(char));
   argint(0, &arg0);
 
 
@@ -185,13 +183,11 @@ syscall(void)
     mask = p->mask;
     return_value = p->trapframe->a0;
     pid = p->pid;
-    for(int i=1; i<32; i++){
-      mask_try = 1 << i;
-      if(mask_try & mask){
-        printf("%d: %s(%d) -> %d\n", pid, syscall_names[i], arg0, return_value);
-
-      }
+    mask_try = 1 << num;
+    if(mask_try & mask){
+      printf("%d: %s(%d) -> %d\n", pid, syscall_names[num], arg0, return_value);
     }
+    
 
   } else {
     printf("%d %s: unknown sys call %d\n",
