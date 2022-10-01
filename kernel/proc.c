@@ -294,8 +294,10 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
-
+  
+  //
   np->mask = p->mask;
+  //
 
   release(&np->lock);
 
@@ -704,3 +706,27 @@ trace(uint64 mask){
   p->mask = mask;
   return 0;
 }
+
+uint64
+freefd(void){
+  struct proc *p = myproc();
+  // struct file **f;
+  int num = 0;
+  for(int i = 0; i < NOFILE; i++){
+    if(p->ofile[i]){
+      num++;
+    }
+  }
+  return num;
+};
+
+uint64
+nproc(void){
+  struct proc *p;
+  int num = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->state == UNUSED) 
+      num++;
+  }
+  return num;
+};
