@@ -82,7 +82,7 @@ kalloc(void)
 }
 
 
-///
+//get how many bytes are free in memory
 uint64
 freemem(void){
   int i = 0;

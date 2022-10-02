@@ -707,6 +707,7 @@ trace(uint64 mask){
   return 0;
 }
 
+//get the number of free file descriptors of current process
 uint64
 freefd(void){
   struct proc *p = myproc();
@@ -717,9 +718,10 @@ freefd(void){
       num++;
     }
   }
-  return num;
+  return NOFILE - num;
 };
 
+//get the number of UNUSED processes
 uint64
 nproc(void){
   struct proc *p;
