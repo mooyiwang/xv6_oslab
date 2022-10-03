@@ -179,7 +179,7 @@ syscall(void)
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     p->trapframe->a0 = syscalls[num]();
 
-    ///
+    //print trace infomation
     mask = p->mask;
     return_value = p->trapframe->a0;
     pid = p->pid;
