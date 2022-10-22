@@ -99,23 +99,27 @@ kalloc(void)
   if(r){
     kmems[cid].freelist = r->next;
   }
-  else{
+  release(&kmems[cid].lock);
+  if(!r){
     int old_cid = cid;
-    for(int next_cid = (cid+1)%NCPU; next_cid != old_cid; next_cid = (next_cid+1)%NCPU){
+    for(int next_cid = (old_cid+1)%NCPU; next_cid != old_cid; next_cid = (next_cid+1)%NCPU){
       acquire(&kmems[next_cid].lock);
       r = kmems[next_cid].freelist;
       if(r){
         kmems[next_cid].freelist = r->next;
         release(&kmems[next_cid].lock);
+        // release(&kmems[old_cid].lock);
         break;
       }
       release(&kmems[next_cid].lock);
     }
   }
-  release(&kmems[cid].lock);
+  
 
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+
+
   return (void*)r;
 }

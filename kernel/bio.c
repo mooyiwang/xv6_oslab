@@ -52,6 +52,7 @@ binit(void)
   // bcache.head.prev = &bcache.head;
   // bcache.head.next = &bcache.head;
   for(b = bcache.buf, i = 0; b < bcache.buf+NBUF; b++, i = (i+1) % NBUCKETS){
+  // for(b = bcache.buf; b < bcache.buf+NBUF; b++){
     b->next = bcache.bucket[i].next;
     b->prev = &bcache.bucket[i];
     initsleeplock(&b->lock, "buffer");
@@ -89,31 +90,44 @@ bget(uint dev, uint blockno)
       b->blockno = blockno;
       b->valid = 0;
       b->refcnt = 1;
+
+      b->prev->next = b->next;
+      b->next->prev = b->prev;
+      b->next = bcache.bucket[bucket_i].next;
+      b->prev = &bcache.bucket[bucket_i];
+      bcache.bucket[bucket_i].next = b;
+      bcache.bucket[bucket_i].next->prev = b;
+
       release(&bcache.bucket_lock[bucket_i]);
       acquiresleep(&b->lock);
       return b;
     }
   }
+  // release(&bcache.bucket_lock[bucket_i]);
 
   int old_bucket_i = bucket_i;
-  for(int next_bucket_i = (bucket_i+1)%NBUCKETS; next_bucket_i != old_bucket_i; next_bucket_i = (next_bucket_i+1)%NBUCKETS){
+  for(int next_bucket_i = (old_bucket_i+1)%NBUCKETS; next_bucket_i != old_bucket_i; next_bucket_i = (next_bucket_i+1)%NBUCKETS){
+  // for(int next_bucket_i = 0; next_bucket_i < NBUCKETS; next_bucket_i = (next_bucket_i+1)){
+  //   if(next_bucket_i == old_bucket_i) continue;
     acquire(&bcache.bucket_lock[next_bucket_i]);
     for(b = bcache.bucket[next_bucket_i].prev; b != &bcache.bucket[next_bucket_i]; b = b->prev){
       if(b->refcnt == 0){
-        b->dev = dev;
-        b->blockno = blockno;
-        b->valid = 0;
-        b->refcnt = 1;
-
         b->prev->next = b->next;
         b->next->prev = b->prev;
+        release(&bcache.bucket_lock[next_bucket_i]);
 
 
+        // acquire(&bcache.bucket_lock[old_bucket_i]);
         b->next = bcache.bucket[old_bucket_i].next;
         b->prev = &bcache.bucket[old_bucket_i];
         bcache.bucket[old_bucket_i].next = b;
         bcache.bucket[old_bucket_i].next->prev = b;
-        release(&bcache.bucket_lock[next_bucket_i]);
+
+        b->dev = dev;
+        b->blockno = blockno;
+        b->valid = 0;
+        b->refcnt = 1;
+        
         release(&bcache.bucket_lock[old_bucket_i]);
         acquiresleep(&b->lock);
         return b;
@@ -121,7 +135,7 @@ bget(uint dev, uint blockno)
     }
     release(&bcache.bucket_lock[next_bucket_i]);
   }
-  release(&bcache.bucket_lock[old_bucket_i]);
+
   panic("bget: no buffers");
 }
 
@@ -156,9 +170,8 @@ brelse(struct buf *b)
   if(!holdingsleep(&b->lock))
     panic("brelse");
 
-  int bucket_i = b->blockno % NBUCKETS;
-  
   releasesleep(&b->lock);
+  int bucket_i = b->blockno % NBUCKETS;
 
   acquire(&bcache.bucket_lock[bucket_i]);
   b->refcnt--;
@@ -191,5 +204,3 @@ bunpin(struct buf *b) {
   b->refcnt--;
   release(&bcache.bucket_lock[bucket_i]);
 }
-
-
