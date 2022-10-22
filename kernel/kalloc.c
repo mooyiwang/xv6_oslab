@@ -23,6 +23,8 @@ struct {
   struct run *freelist;
 } kmem;
 
+struct kmem kmems[NCPU];
+
 void
 kinit()
 {
