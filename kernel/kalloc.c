@@ -23,6 +23,7 @@ struct kmem{
   struct run *freelist;
 };
 
+// allocate a freelist for each CPU
 struct kmem kmems[NCPU];
 
 void
@@ -38,10 +39,9 @@ void
 freerange(void *pa_start, void *pa_end)
 {
   char *p;
-  int cid = 0;
   struct run *r;
   p = (char*)PGROUNDUP((uint64)pa_start);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE){
+  for(int cid = 0; p + PGSIZE <= (char*)pa_end; p += PGSIZE, cid = (cid + 1) % NCPU){
     
     memset(p, 1, PGSIZE);
     r = (struct run*)p;
@@ -50,8 +50,6 @@ freerange(void *pa_start, void *pa_end)
     r->next = kmems[cid].freelist;
     kmems[cid].freelist = r;
     release(&kmems[cid].lock);
-    
-    cid = (cid + 1) % NCPU;
   }
 }
 
@@ -100,15 +98,16 @@ kalloc(void)
     kmems[cid].freelist = r->next;
   }
   release(&kmems[cid].lock);
+
+  //steal a free page from other freelist
   if(!r){
-    int old_cid = cid;
-    for(int next_cid = (old_cid+1)%NCPU; next_cid != old_cid; next_cid = (next_cid+1)%NCPU){
+    for(int next_cid = (cid+1)%NCPU; next_cid != cid; next_cid = (next_cid+1)%NCPU){
       acquire(&kmems[next_cid].lock);
       r = kmems[next_cid].freelist;
+      //find a page
       if(r){
         kmems[next_cid].freelist = r->next;
         release(&kmems[next_cid].lock);
-        // release(&kmems[old_cid].lock);
         break;
       }
       release(&kmems[next_cid].lock);
@@ -116,10 +115,7 @@ kalloc(void)
   }
   
 
-
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
-
-
   return (void*)r;
 }
