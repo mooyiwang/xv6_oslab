@@ -96,3 +96,26 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_sigalarm(void)
+{
+  int interval;
+  int handler;
+
+  
+  if(argint(0, &interval) < 0){
+    return -1;
+  }
+  if(argint(1, &handler) < 0){
+    return -1;
+  }
+
+  return sigalarm(interval, handler);
+}
+
+uint64
+sys_sigreturn(void)
+{
+  return sigreturn();
+}

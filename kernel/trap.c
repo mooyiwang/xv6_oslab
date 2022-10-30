@@ -77,8 +77,34 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
-    yield();
+  // Every tick, the hardware clock forces an interrupt
+  if(which_dev == 2){
+    if(p->interval !=0){
+      p->alarm_ticks_cnt += 1;//cnt ticks
+      if(p->alarm_ticks_cnt == p->interval){
+        p->alarm_ticks_cnt = 0;                      //update counter
+        
+        if(p->trapframe_for_sigalarm == 0){
+          p->trapframe_for_sigalarm = (struct trapframe *)kalloc();
+          memmove(p->trapframe_for_sigalarm, p->trapframe, PGSIZE);//save epc and other registers
+          p->trapframe->epc = p->handler;//set epc to point handler
+        }
+        else{
+          yield();
+        }
+      }
+      else{
+        yield();
+      }
+
+    }
+    else{
+      p->alarm_ticks_cnt = 0;
+      yield();
+    }
+  }
+    
+    
 
   usertrapret();
 }

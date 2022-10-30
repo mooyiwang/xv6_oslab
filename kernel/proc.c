@@ -127,6 +127,13 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  //lab-traps-alarm
+  //initialize coresponding fields 
+  p->alarm_ticks_cnt = 0;
+  p->interval = 0;
+  p->handler = 0;
+  p->trapframe_for_sigalarm = 0;
+
   return p;
 }
 
@@ -150,6 +157,10 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+
+  if(p->trapframe_for_sigalarm)
+    kfree((void*)p->trapframe_for_sigalarm);
+  p->trapframe_for_sigalarm = 0;
 }
 
 // Create a user page table for a given process,
@@ -696,4 +707,33 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+//set alarm field
+int
+sigalarm(int interval, uint64 handler)
+{
+  struct proc *p = myproc();
+  if(p->trapframe_for_sigalarm == 0){
+    //Prevent re-entrant calls to the handler
+      p->interval = interval;
+      p->handler = handler;
+      p->alarm_ticks_cnt = 0;
+      // p->trapframe_for_sigalarm = 0;
+      return 0;
+  }
+  return -1;
+}
+
+int
+sigreturn()
+{
+  struct proc *p = myproc();
+
+  if(p->trapframe_for_sigalarm){
+    memmove(p->trapframe, p->trapframe_for_sigalarm, PGSIZE);
+    kfree((void*)p->trapframe_for_sigalarm);
+    p->trapframe_for_sigalarm = 0;
+  }
+  return 0;
 }
