@@ -277,8 +277,6 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
   char *mem;
   uint64 a;
 
-  if(newsz > USERTOP)
-    panic("uvmalloc: user memory size should less than USERTOP");
   
   if(newsz < oldsz)
     return oldsz;
@@ -358,15 +356,13 @@ freewalkelse(pagetable_t pagetable)
 }
 
 void
-freewalkuser(pagetable_t pagetable)
+freewalkuser(pagetable_t pagetable, uint64 usz)
 {
   pte_t *pte_one;
-  for(uint64 va=0; va < USERTOP; va += PGSIZE){
-    if((pte_one = walkone(pagetable, va, 0)) != 0){
-      if(*pte_one & PTE_V){
-        *pte_one = 0;
-      }
-    }
+  for(uint64 va=0; va < usz; va += PGSIZE){
+    if((pte_one = walkone(pagetable, va, 0)) == 0)
+      panic("freewalkuser");
+    *pte_one = 0;
   }
 }
 
@@ -374,6 +370,13 @@ void
 freewalkall(pagetable_t pagetable)
 {
   // freewalkuser(pagetable);
+  freewalkelse(pagetable);
+}
+
+void 
+freekpgtbl(pagetable_t pagetable, uint64 usz)
+{
+  freewalkuser(pagetable, usz);
   freewalkelse(pagetable);
 }
 
@@ -483,9 +486,9 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
   //   dst += n;
   //   srcva = va0 + PGSIZE;
   // }
-  w_sstatus(r_sstatus() | SSTATUS_SUM);
+  // w_sstatus(r_sstatus() | SSTATUS_SUM);
   int flag = copyin_new(pagetable, dst, srcva, len);
-  w_sstatus(r_sstatus() & ~SSTATUS_SUM);
+  // w_sstatus(r_sstatus() & ~SSTATUS_SUM);
   // return 0;
   return flag;
 }
@@ -531,9 +534,9 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   // } else {
   //   return -1;
   // }
-  w_sstatus(r_sstatus() | SSTATUS_SUM);
+  // w_sstatus(r_sstatus() | SSTATUS_SUM);
   int flag = copyinstr_new(pagetable, dst, srcva, max);
-  w_sstatus(r_sstatus() & ~SSTATUS_SUM);
+  // w_sstatus(r_sstatus() & ~SSTATUS_SUM);
   // return 0;
   return flag;
 
@@ -591,7 +594,7 @@ pte_t *
 walkone(pagetable_t pagetable, uint64 va, int alloc)
 {
   if(va >= MAXVA)
-    panic("walkine");
+    panic("walkone");
 
   for(int level = 2; level > 1; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
@@ -609,36 +612,111 @@ walkone(pagetable_t pagetable, uint64 va, int alloc)
 
 
 //update k_pagetable
-//k_pagetable shares leaf page table(3rd-level) with user pagetable
-//NOTICE: don not change the tags 
+//k_pagetable shares leaf page table(3rd-level) with user pagetable xx
+//NOTICE: don not change the tags xx
 int
 mappingup(pagetable_t k_pagetable, pagetable_t u_pagetable)
 {
   uint64 va;
-  pte_t *k_pte_one, *u_pte_one;
+  // pte_t *k_pte_one, *u_pte_one;
+  pte_t *k_pte, *u_pte;
   
   for(va = 0; va < USERTOP; va += PGSIZE){
-
-    if((u_pte_one = walkone(u_pagetable, va, 0)) != 0){
-      if(*u_pte_one & PTE_V){
-        k_pte_one = walkone(k_pagetable, va, 1);
-        *k_pte_one = *u_pte_one; 
-      }
-      else{
-        if((k_pte_one = walkone(k_pagetable, va, 0)) != 0){
-          if(*k_pte_one & PTE_V){
-            *k_pte_one = 0;
+    if((u_pte = walk(u_pagetable, va, 0)) != 0){
+        if(*u_pte & PTE_V){
+          if((k_pte = walk(k_pagetable, va, 1)) == 0){
+            panic("mappingup: k_pagetable walk");
+          }
+          *k_pte = *u_pte & (~PTE_U);
+        }
+        else{
+          if((k_pte = walk(k_pagetable, va, 0)) != 0){
+            if((*k_pte & PTE_V)){
+              *k_pte = 0;
+            }
           }
         }
-      }
     }
     else{
-      if((k_pte_one = walkone(k_pagetable, va, 0)) != 0){
-          if(*k_pte_one & PTE_V){
-            *k_pte_one = 0;
+      if((k_pte = walk(k_pagetable, va, 0)) != 0){
+            if((*k_pte & PTE_V)){
+              *k_pte = 0;
+            }
           }
-      }
     }
   }
+  return 0;
+
+ 
+      // if((u_pte_one = walkone(u_pagetable, va, 0)) != 0){
+    //   if(*u_pte_one & PTE_V){
+    //     k_pte_one = walkone(k_pagetable, va, 1);
+    //     *k_pte_one = *u_pte_one; 
+    //   }
+    //   else{
+    //     if((k_pte_one = walkone(k_pagetable, va, 0)) != 0){
+    //       if(*k_pte_one & PTE_V){
+    //         *k_pte_one = 0;
+    //       }
+    //     }
+    //   }
+    // }
+    // else{
+    //   if((k_pte_one = walkone(k_pagetable, va, 0)) != 0){
+    //       if(*k_pte_one & PTE_V){
+    //         *k_pte_one = 0;
+    //       }
+    //   }
+    // }
+  
+}
+
+int 
+makemapping(pagetable_t k_pagetable, pagetable_t u_pagetable, uint64 st, uint64 ed, uint64 clr){
+  pte_t *k_pte, *u_pte;
+  uint64 a;
+
+    
+    for(a = PGROUNDUP(st); a < ed; a += PGSIZE){
+      if((u_pte = walk(u_pagetable, a, 0)) == 0)
+        panic("makemapping: 1");
+      if(!(*u_pte & PTE_V))
+        panic("makemapping: 2");
+      if((k_pte = walk(k_pagetable, a, 1)) == 0)
+        panic("makemapping: 3");
+      *k_pte = *u_pte & ~(PTE_U);
+    }
+
+    for(a = PGROUNDUP(ed); a < clr; a += PGSIZE){
+      if((k_pte = walk(k_pagetable, a, 0)) == 0)
+        panic("makemapping: 4");
+      *k_pte = 0;
+    }
+
+  return 0;
+}
+
+int
+makesharedmapping(pagetable_t k_pagetable, pagetable_t u_pagetable, uint64 st, uint64 ed, uint64 clr)
+{
+  pte_t *k_pte, *u_pte;
+  uint64 a;
+    
+    for(a = PGROUNDUP(st); a < ed; a += PGSIZE){
+      if((u_pte = walkone(u_pagetable, a, 0)) == 0)
+        panic("makemapping: 1");
+      if(!(*u_pte & PTE_V))
+        panic("makemapping: 2");
+      if((k_pte = walkone(k_pagetable, a, 1)) == 0)
+        panic("makemapping: 3");
+      *k_pte = *u_pte;
+    }
+
+    for(a = PGROUNDUP(ed); a < clr; a += PGSIZE){
+      if((k_pte = walkone(k_pagetable, a, 0)) == 0)
+        panic("makemapping: 4");
+      *k_pte = 0;
+    }
+
   return 0;
 }

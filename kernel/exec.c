@@ -120,7 +120,9 @@ exec(char *path, char **argv)
     vmprint(p->pagetable);
   }
 
-  mappingup(p->k_pagetable, p->pagetable);
+  // mappingup(p->k_pagetable, pagetable);
+  makemapping(p->k_pagetable, pagetable, 0, sz, oldsz);
+  // makesharedmapping(p->k_pagetable, pagetable, 0, sz, oldsz);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
