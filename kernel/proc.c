@@ -133,7 +133,11 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   // create proc's private k/u page table
-  p->k_pagetable = kuvminit();
+  if((p->k_pagetable = kuvminit()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
   kuvmmap(p->kstack, p->kstack_pa, PGSIZE, PTE_R | PTE_W, p->k_pagetable);
 
   return p;
@@ -153,7 +157,6 @@ freeproc(struct proc *p)
   //free k/u page table
   if(p->k_pagetable)
     freewalkall(p->k_pagetable);
-  
   p->k_pagetable = 0;
   p->pagetable = 0;
   p->sz = 0;
@@ -244,6 +247,8 @@ userinit(void)
 
   p->state = RUNNABLE;
 
+  mappingup(p->k_pagetable, p->pagetable);
+
   release(&p->lock);
 }
 
@@ -264,6 +269,9 @@ growproc(int n)
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
+
+  mappingup(p->k_pagetable, p->pagetable);
+
   return 0;
 }
 
@@ -287,6 +295,9 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+
+
+  
   np->sz = p->sz;
 
   np->parent = p;
@@ -310,6 +321,8 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&np->lock);
+
+  mappingup(np->k_pagetable, np->pagetable);
 
   return pid;
 }

@@ -183,6 +183,7 @@ void            vmprint(pagetable_t pgtbl);
 pagetable_t     kuvminit(void);
 void            kuvmmap(uint64 va, uint64 pa, uint64 sz, int perm, pagetable_t k_pagetable);
 void            freewalkall(pagetable_t pagetable);
+int             mappingup(pagetable_t k_pagetable, pagetable_t u_pagetable);
 
 // plic.c
 void            plicinit(void);
