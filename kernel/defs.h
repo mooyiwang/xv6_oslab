@@ -180,6 +180,9 @@ int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             test_pagetable();
 void            vmprint(pagetable_t pgtbl);
+pagetable_t     kuvminit(void);
+void            kuvmmap(uint64 va, uint64 pa, uint64 sz, int perm, pagetable_t k_pagetable);
+void            freewalkall(pagetable_t pagetable);
 
 // plic.c
 void            plicinit(void);

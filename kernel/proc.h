@@ -105,5 +105,5 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   pagetable_t k_pagetable;     // private kernel/user page table(2 in 1)
-  uint64 kstack_pa             // kernel stack physical address
+  uint64 kstack_pa;             // kernel stack physical address
 };

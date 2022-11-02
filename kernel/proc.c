@@ -21,6 +21,8 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+extern pagetable_t kernel_pagetable;
+
 // initialize the proc table at boot time.
 void
 procinit(void)
@@ -40,6 +42,9 @@ procinit(void)
       uint64 va = KSTACK((int) (p - proc));
       kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
       p->kstack = va;
+
+      //add proc's kstack pa into kstack_pa
+      p->kstack_pa = (uint64)pa;
   }
   kvminithart();
 }
@@ -127,6 +132,10 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // create proc's private k/u page table
+  p->k_pagetable = kuvminit();
+  kuvmmap(p->kstack, p->kstack_pa, PGSIZE, PTE_R | PTE_W, p->k_pagetable);
+
   return p;
 }
 
@@ -141,6 +150,11 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  //free k/u page table
+  if(p->k_pagetable)
+    freewalkall(p->k_pagetable);
+  
+  p->k_pagetable = 0;
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -473,7 +487,17 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+
+        // switch to k_pagetable
+        w_satp(MAKE_SATP(p->k_pagetable));
+        sfence_vma();
+
         swtch(&c->context, &p->context);
+
+        // switch to global kernel_pagetable
+        w_satp(MAKE_SATP(kernel_pagetable));
+        sfence_vma();
+
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
