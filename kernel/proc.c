@@ -156,8 +156,8 @@ freeproc(struct proc *p)
     proc_freepagetable(p->pagetable, p->sz);
   //free k/u page table
   if(p->k_pagetable)
-    freewalkall(p->k_pagetable);
-    // freekpgtbl(p->k_pagetable, p->sz);
+    // freewalkall(p->k_pagetable);
+    freekpgtbl(p->k_pagetable, p->sz);
   p->k_pagetable = 0;
   p->pagetable = 0;
   p->sz = 0;
@@ -249,8 +249,8 @@ userinit(void)
   p->state = RUNNABLE;
 
   // mappingup(p->k_pagetable, p->pagetable);
-  makemapping(p->k_pagetable, p->pagetable, 0, p->sz, p->sz);
-  // makesharedmapping(p->k_pagetable, p->pagetable, 0, p->sz, p->sz);
+  // makemapping(p->k_pagetable, p->pagetable, 0, p->sz, p->sz);
+  makesharedmapping(p->k_pagetable, p->pagetable, 0, p->sz, p->sz);
 
   release(&p->lock);
 }
@@ -268,12 +268,12 @@ growproc(int n)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
-    makemapping(p->k_pagetable, p->pagetable, p->sz, sz, sz);
-    // makesharedmapping(p->k_pagetable, p->pagetable, p->sz, sz, sz);
+    // makemapping(p->k_pagetable, p->pagetable, p->sz, sz, sz);
+    makesharedmapping(p->k_pagetable, p->pagetable, p->sz, sz, sz);
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
-    makemapping(p->k_pagetable, p->pagetable, sz, sz, p->sz);
-    // makesharedmapping(p->k_pagetable, p->pagetable, sz, sz, p->sz);
+    // makemapping(p->k_pagetable, p->pagetable, sz, sz, p->sz);
+    makesharedmapping(p->k_pagetable, p->pagetable, sz, sz, p->sz);
   }
   p->sz = sz;
 
@@ -328,8 +328,8 @@ fork(void)
   np->state = RUNNABLE;
 
     // mappingup(np->k_pagetable, np->pagetable);
-  makemapping(np->k_pagetable, np->pagetable, 0, np->sz, np->sz);
-  // makesharedmapping(np->k_pagetable, np->pagetable, 0, np->sz, np->sz);
+  // makemapping(np->k_pagetable, np->pagetable, 0, np->sz, np->sz);
+  makesharedmapping(np->k_pagetable, np->pagetable, 0, np->sz, np->sz);
 
   release(&np->lock);
 

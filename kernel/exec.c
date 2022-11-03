@@ -121,8 +121,8 @@ exec(char *path, char **argv)
   }
 
   // mappingup(p->k_pagetable, pagetable);
-  makemapping(p->k_pagetable, pagetable, 0, sz, oldsz);
-  // makesharedmapping(p->k_pagetable, pagetable, 0, sz, oldsz);
+  // makemapping(p->k_pagetable, pagetable, 0, sz, oldsz);
+  makesharedmapping(p->k_pagetable, pagetable, 0, sz, oldsz);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 

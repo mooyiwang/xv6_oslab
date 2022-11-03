@@ -49,7 +49,7 @@ kvminit()
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 }
 
-// add a mapping to the private kernel/user page table.
+// add a mapping to the private (aka process(user)-specific) kernel page table.
 // only used when booting.
 // does not flush TLB or enable paging.
 void
@@ -59,6 +59,7 @@ kuvmmap(uint64 va, uint64 pa, uint64 sz, int perm, pagetable_t k_pagetable)
     panic("kuvmmap");
 }
 
+// create a process(user)-specific direct-map kernel pagetable
 pagetable_t
 kuvminit(void)
 {
@@ -359,7 +360,7 @@ void
 freewalkuser(pagetable_t pagetable, uint64 usz)
 {
   pte_t *pte_one;
-  for(uint64 va=0; va < usz; va += PGSIZE){
+  for(uint64 va=0; va < usz; va += (1L << 21)){
     if((pte_one = walkone(pagetable, va, 0)) == 0)
       panic("freewalkuser");
     *pte_one = 0;
@@ -486,9 +487,9 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
   //   dst += n;
   //   srcva = va0 + PGSIZE;
   // }
-  // w_sstatus(r_sstatus() | SSTATUS_SUM);
+  w_sstatus(r_sstatus() | SSTATUS_SUM);
   int flag = copyin_new(pagetable, dst, srcva, len);
-  // w_sstatus(r_sstatus() & ~SSTATUS_SUM);
+  w_sstatus(r_sstatus() & ~SSTATUS_SUM);
   // return 0;
   return flag;
 }
@@ -534,9 +535,9 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   // } else {
   //   return -1;
   // }
-  // w_sstatus(r_sstatus() | SSTATUS_SUM);
+  w_sstatus(r_sstatus() | SSTATUS_SUM);
   int flag = copyinstr_new(pagetable, dst, srcva, max);
-  // w_sstatus(r_sstatus() & ~SSTATUS_SUM);
+  w_sstatus(r_sstatus() & ~SSTATUS_SUM);
   // return 0;
   return flag;
 
@@ -647,28 +648,6 @@ mappingup(pagetable_t k_pagetable, pagetable_t u_pagetable)
   }
   return 0;
 
- 
-      // if((u_pte_one = walkone(u_pagetable, va, 0)) != 0){
-    //   if(*u_pte_one & PTE_V){
-    //     k_pte_one = walkone(k_pagetable, va, 1);
-    //     *k_pte_one = *u_pte_one; 
-    //   }
-    //   else{
-    //     if((k_pte_one = walkone(k_pagetable, va, 0)) != 0){
-    //       if(*k_pte_one & PTE_V){
-    //         *k_pte_one = 0;
-    //       }
-    //     }
-    //   }
-    // }
-    // else{
-    //   if((k_pte_one = walkone(k_pagetable, va, 0)) != 0){
-    //       if(*k_pte_one & PTE_V){
-    //         *k_pte_one = 0;
-    //       }
-    //   }
-    // }
-  
 }
 
 int 
@@ -676,7 +655,6 @@ makemapping(pagetable_t k_pagetable, pagetable_t u_pagetable, uint64 st, uint64 
   pte_t *k_pte, *u_pte;
   uint64 a;
 
-    
     for(a = PGROUNDUP(st); a < ed; a += PGSIZE){
       if((u_pte = walk(u_pagetable, a, 0)) == 0)
         panic("makemapping: 1");
@@ -696,25 +674,27 @@ makemapping(pagetable_t k_pagetable, pagetable_t u_pagetable, uint64 st, uint64 
   return 0;
 }
 
+
+#define FRAMEONEROUNDUP(sz) (((sz)+(1L << 21)-1) & ~((1L << 21)-1))
 int
 makesharedmapping(pagetable_t k_pagetable, pagetable_t u_pagetable, uint64 st, uint64 ed, uint64 clr)
 {
   pte_t *k_pte, *u_pte;
   uint64 a;
     
-    for(a = PGROUNDUP(st); a < ed; a += PGSIZE){
+    for(a = FRAMEONEROUNDUP(st); a < ed; a += (1L << 21)){
       if((u_pte = walkone(u_pagetable, a, 0)) == 0)
-        panic("makemapping: 1");
+        panic("makesharedmapping: user walkone");
       if(!(*u_pte & PTE_V))
-        panic("makemapping: 2");
+        panic("makesharedmapping: pte should valid");
       if((k_pte = walkone(k_pagetable, a, 1)) == 0)
-        panic("makemapping: 3");
+        panic("makesharedmapping: kernel walkone");
       *k_pte = *u_pte;
     }
 
-    for(a = PGROUNDUP(ed); a < clr; a += PGSIZE){
+    for(a = FRAMEONEROUNDUP(ed); a < clr; a += (1L << 21)){
       if((k_pte = walkone(k_pagetable, a, 0)) == 0)
-        panic("makemapping: 4");
+        panic("makesharedmapping: kernel walkone");
       *k_pte = 0;
     }
 
