@@ -243,9 +243,12 @@ growproc(int n)
 
   sz = p->sz;
   if(n > 0){
-    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
-      return -1;
-    }
+    // if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    //   return -1;
+    // }
+    //lazy alloc
+    p->sz = sz + n;
+    return 0;
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
@@ -693,4 +696,29 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+//when page fault caused by lazy alloc, alloc a physical page then set mapping
+//return 0 on not physical space and mapping, but we set it
+//return -1 on error
+int
+lazyalloc(uint64 u_va)
+{
+  // pte_t *pte;
+  struct proc *p = myproc();
+
+  if(u_va >= p->sz || u_va < p->trapframe->sp){
+    return -1;
+  }
+
+  char *mem;
+  if((mem = kalloc()) == 0){
+    return -1;
+  }
+  memset(mem, 0, PGSIZE);
+  if(mappages(p->pagetable, PGROUNDDOWN(u_va), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+    kfree(mem);
+    return -1;
+  }
+  return 0;
 }

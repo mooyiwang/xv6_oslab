@@ -68,9 +68,35 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    p->killed = 1;
+    // int is_lazy_alloc = 0;
+    int is_lazy_alloc_handled = 0;
+
+    if(r_scause() == 13 || r_scause() == 15){
+      //page fault
+      uint64 va = r_stval();
+      if(va >= p->sz || va < p->trapframe->sp)
+        goto done;
+      
+      //page fault caused by lazy allocation
+      // is_lazy_alloc = 1;
+      char *mem;
+      if((mem = kalloc()) == 0){
+        goto done; //out-of-memory
+      }
+      memset(mem, 0, PGSIZE);
+      if(mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+        kfree(mem);
+        goto done; //mapping fault
+      }
+      is_lazy_alloc_handled = 1;
+    }
+
+    done: 
+    if(!is_lazy_alloc_handled){
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      p->killed = 1;
+    }
   }
 
   if(p->killed)
