@@ -714,15 +714,15 @@ int
 sigalarm(int interval, uint64 handler)
 {
   struct proc *p = myproc();
-  if(p->trapframe_for_sigalarm == 0){
+  // if(p->trapframe_for_sigalarm == 0){
     //Prevent re-entrant calls to the handler
       p->interval = interval;
       p->handler = handler;
       p->alarm_ticks_cnt = 0;
       // p->trapframe_for_sigalarm = 0;
       return 0;
-  }
-  return -1;
+  // }
+  // return -1;
 }
 
 int
