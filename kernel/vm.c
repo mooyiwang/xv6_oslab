@@ -320,11 +320,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = (PTE_FLAGS(*pte) & ~PTE_W) | PTE_COW;
-    *pte = (*pte & ~PTE_W) | PTE_COW;
+    *pte = (*pte & ~PTE_W) | PTE_COW; //change parent's flags
     // if((mem = kalloc()) == 0)
     //   goto err;
     // memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, pa, flags) != 0){
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){ //share physical page
       // kfree(mem);
       goto err;
     }
@@ -357,10 +357,12 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
+  // pte_t *pte;
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-    copy_on_write(va0, pagetable);
+    if(copy_on_write(va0, pagetable) < 0)
+      return -1;
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;
@@ -444,28 +446,38 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   }
 }
 
+
+//copy on write handler
 int
 copy_on_write(uint64 va, pagetable_t pagetable)
 {
   pte_t *pte;
   uint flags;
 
-  if((pte = walk(pagetable, va, 0)) == 0)
-    panic("copy_on_write: walk");
+  // va cannot bigger than MAXVA
+  if(va >= MAXVA)
+    return -1;
 
+  // va must have mapping in pagetable
+  if((pte = walk(pagetable, va, 0)) == 0)
+    return -1;
+
+  // means no need to handle
   if((*pte & PTE_W))
+    return 0;
+  
+  // only handle page fault cause by COW
+  if((*pte & PTE_COW) == 0)
     return -1;
   
-  if(!(*pte & PTE_COW))
-    return -1;
-  
+  //copy on write
   uint64 pa = PTE2PA(*pte);
-  flags = PTE_FLAGS(*pte) | PTE_W;
+  flags = (PTE_FLAGS(*pte) | PTE_W) & ~PTE_COW;
   char *mem;
   if((mem = kalloc()) == 0)
     return -1;
-  memmove(mem, (char*)pa, PGSIZE);
-  *pte = PA2PTE(mem) | flags;
+  memmove(mem, (char*)pa, PGSIZE);  // copy
+  *pte = PA2PTE(mem) | flags; //reset pte
   kfree((void *)pa);
   return 0;
 }
