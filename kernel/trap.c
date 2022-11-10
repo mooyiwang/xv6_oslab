@@ -68,9 +68,24 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    p->killed = 1;
+    int is_cow_done = 0;
+
+    if(r_scause() == 15){
+      //write page fault
+      uint64 va = r_stval();
+  
+      if(copy_on_write(va, p->pagetable) < 0){
+        goto except;
+      }
+      is_cow_done = 1;
+    }
+
+    except:
+    if(is_cow_done == 0){
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      p->killed = 1;
+    }
   }
 
   if(p->killed)
