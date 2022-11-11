@@ -1,0 +1,9 @@
+It is likely to lost some kays in insert().
+When 2 thread running into insert(), they both get new allocated entries(ie. e1 and e2), which will be inserted into the same table.
+bad thing happened, when they both add e1/e2 over current table head, their "next" are same. like below:
+             e1  
+               \
+                n - o - o
+               /
+        p -> e2
+so the entry e1 is not added into the linked list, it lost.

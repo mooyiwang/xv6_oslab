@@ -99,7 +99,7 @@ thread_create(void (*func)())
   // YOUR CODE HERE
   //similar with allocproc()
   t->context.ra = (uint64)func; // func entry
-  t->context.sp = (uint64)(t->stack + STACK_SIZE - 1); //use thread's own stack
+  t->context.sp = (uint64)(t->stack + STACK_SIZE); //use thread's own stack
 }
 
 void 
