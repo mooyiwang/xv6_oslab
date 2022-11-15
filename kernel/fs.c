@@ -415,15 +415,15 @@ bmap(struct inode *ip, uint bn)
       a[bni] = addr = balloc(ip->dev);
       log_write(bp);
     }
-      
+    brelse(bp);
+
     bp2 = bread(ip->dev, addr);
     a = (uint*)bp2->data;
-    if((addr = a[bn - bni*NINDIRECT]) == 0){
-      a[bn - bni*NINDIRECT] = addr = balloc(ip->dev);
+    if((addr = a[bn % NINDIRECT]) == 0){
+      a[bn % NINDIRECT] = addr = balloc(ip->dev);
       log_write(bp2);
     }
     brelse(bp2);
-    brelse(bp);
     return addr;
   }
 
@@ -433,7 +433,7 @@ bmap(struct inode *ip, uint bn)
 
 
 void
-_itrunc(struct inode *ip, uint addr, int level)
+_itrunc(struct inode *ip, uint addr)
 {
     int j;
     struct buf *bp;
@@ -443,9 +443,6 @@ _itrunc(struct inode *ip, uint addr, int level)
     a = (uint*)bp->data;
     for(j = 0; j < NINDIRECT; j++){
       if(a[j]){
-        if(level != 1){
-          _itrunc(ip, a[j], level-1);
-        }
         bfree(ip->dev, a[j]);
       }
     }
@@ -458,9 +455,9 @@ _itrunc(struct inode *ip, uint addr, int level)
 void
 itrunc(struct inode *ip)
 {
-  int i;
-  // struct buf *bp;
-  // uint *a;
+  int i, j;
+  struct buf *bp;
+  uint *a;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -478,24 +475,23 @@ itrunc(struct inode *ip)
     // }
     // brelse(bp);
     // bfree(ip->dev, ip->addrs[NDIRECT]);
-    _itrunc(ip, ip->addrs[NDIRECT], 1);
+    _itrunc(ip, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
   }
 
   if(ip->addrs[NDIRECT+1]){
-    // bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
-    // a = (uint*)bp->data;
-    // for(j = 0; j < NINDIRECT; j++){
-    //   if(a[j]){
-    //     _itrunc(ip, a[j]);
-    //     bfree(ip->dev, a[j]);
-    //   }
-    // }
-    // brelse(bp);
-    // bfree(ip->dev, ip->addrs[NDIRECT+1]);
-    _itrunc(ip, ip->addrs[NDIRECT+1], 2);
+    bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
+    a = (uint*)bp->data;
+    for(j = 0; j < NINDIRECT; j++){
+      if(a[j]){
+        _itrunc(ip, a[j]);
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev, ip->addrs[NDIRECT+1]);
     ip->addrs[NDIRECT+1] = 0;
   }
+
 
   ip->size = 0;
   iupdate(ip);
