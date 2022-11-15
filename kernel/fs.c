@@ -433,8 +433,8 @@ bmap(struct inode *ip, uint bn)
 
 
 void
-_itrunc(struct inode *ip, uint addr)
-{
+_itrunc(struct inode *ip, uint addr, int level)
+{// not delete root
     int j;
     struct buf *bp;
     uint *a;
@@ -443,11 +443,13 @@ _itrunc(struct inode *ip, uint addr)
     a = (uint*)bp->data;
     for(j = 0; j < NINDIRECT; j++){
       if(a[j]){
+        if(level != 1)
+          _itrunc(ip, a[j], level-1);
         bfree(ip->dev, a[j]);
       }
     }
     brelse(bp);
-    bfree(ip->dev, addr);
+    // bfree(ip->dev, addr);
 }
 
 // Truncate inode (discard contents).
@@ -455,9 +457,9 @@ _itrunc(struct inode *ip, uint addr)
 void
 itrunc(struct inode *ip)
 {
-  int i, j;
-  struct buf *bp;
-  uint *a;
+  int i;
+  // struct buf *bp;
+  // uint *a;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -475,19 +477,21 @@ itrunc(struct inode *ip)
     // }
     // brelse(bp);
     // bfree(ip->dev, ip->addrs[NDIRECT]);
-    _itrunc(ip, ip->addrs[NDIRECT]);
+    _itrunc(ip, ip->addrs[NDIRECT], 1);
+    bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
   }
 
   if(ip->addrs[NDIRECT+1]){
-    bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
-    a = (uint*)bp->data;
-    for(j = 0; j < NINDIRECT; j++){
-      if(a[j]){
-        _itrunc(ip, a[j]);
-      }
-    }
-    brelse(bp);
+    // bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
+    // a = (uint*)bp->data;
+    // for(j = 0; j < NINDIRECT; j++){
+    //   if(a[j]){
+    //     _itrunc(ip, a[j]);
+    //   }
+    // }
+    // brelse(bp);
+    _itrunc(ip, ip->addrs[NDIRECT+1], 2);
     bfree(ip->dev, ip->addrs[NDIRECT+1]);
     ip->addrs[NDIRECT+1] = 0;
   }
