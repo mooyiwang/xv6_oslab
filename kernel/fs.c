@@ -458,8 +458,8 @@ void
 itrunc(struct inode *ip)
 {
   int i;
-  // struct buf *bp;
-  // uint *a;
+  // struct buf *bp, *bp2;
+  // uint *a, *a2;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -476,7 +476,7 @@ itrunc(struct inode *ip)
     //     bfree(ip->dev, a[j]);
     // }
     // brelse(bp);
-    // bfree(ip->dev, ip->addrs[NDIRECT]);
+    // // bfree(ip->dev, ip->addrs[NDIRECT]);
     _itrunc(ip, ip->addrs[NDIRECT], 1);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;

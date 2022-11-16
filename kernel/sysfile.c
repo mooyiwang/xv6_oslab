@@ -335,13 +335,12 @@ sys_open(void)
           return -1;
         }
 
+        iunlockput(ip);
         if((ip2 = namei(target)) == 0){
-          iunlockput(ip);
           end_op();
           return -1;
         }
 
-        iunlockput(ip);
         ip = ip2;
         ilock(ip);
       }
