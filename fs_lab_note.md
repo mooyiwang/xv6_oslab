@@ -7,13 +7,13 @@ https://pdos.csail.mit.edu/6.828/2020/labs/fs.html
 （本次实验代码少，并不算难。难在xv6文件系统逐级抽象，需要理解源码）
 ## Preliminaries
 xv6的文件系统分为6层，通过逐层抽象实现文件管理。
-![](fs.png)   
+![](png/fs.png)   
 
 硬盘的最小操作单位为大小1024B的块。硬盘分布如下：
-![](structure.png)
+![](png/structure.png)
 ## Task 1：Large files
 此任务基于``inode``层，和类似于之前做的页表，实现如图所示的二级索引（就有点类似二级页表，但我觉得比页表简单）     
-![](inode.png)
+![](png/inode.png)
 + 首先，修改对应的宏定义（如NDIRECT）   
 + 然后，修改`bmap()`,模仿一级索引的写法实现二级索引。这里需要注意当修改buffer block后要调用`log_write()`, 当不使用buffer block后要调用`brelse()`
 ```C
@@ -170,12 +170,22 @@ if(ip->type == T_SYMLINK){
 这样，本次实验就全部完成
 ## Test
 `make grade`(bigfile测试超时限制设为600s， usertests测试超时限制设为600s)
-
-**注意**：make grade实际上是调用`grade-lab-fs.py`脚本，其中设置了时间限制。（上面修改的时限原本为180s和360s）。不知道为什么我的large file实现效率很低（xv6指导书说任务一bigfile一般会在120s完成，而我的却要400s），首次影响`usertests`中的`writebig`用例也会超时严重。   
+![](png/pass.png)   
+> **注意**：make grade实际上是调用`grade-lab-fs.py`脚本，其中设置了时间限制。（上面修改的时限原本为180s和360s）。不知道为什么我的large file实现效率很低（xv6指导书说任务一bigfile一般会在120s完成，而我的却要400s），首次影响`usertests`中的`writebig`用例也会超时严重。   
 
 为保证结果正确性，我也在xv6中分别调用`bigfile`， `symlink` ，`usertests`。在没有时间限制下测试，都成功通过。
++ bigfile
+![](png/bigfile_pass.png)  
++ symlink  
+![](png/symlink_pass.png)   
++ usertests   
+![](png/usertests_pass.png)          
 
 同时，我将`itrunc()`从递归调用`_itrunc()`改为双重循环，也超时严重。 
+
+还有，我也make grade了别人完成的代码,结果仍然是超时。   
+**所以我怀疑是远程平台性能太差导致超时，还请老师谅解。**
+
 ## 收获
 1. task-1的bmap和itrunc类似之前做过的页表，分配和回收思路要清楚。
 尤其是涉及recursive的时候。
