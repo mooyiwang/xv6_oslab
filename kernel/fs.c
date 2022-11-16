@@ -449,7 +449,7 @@ _itrunc(struct inode *ip, uint addr, int level)
       }
     }
     brelse(bp);
-    // bfree(ip->dev, addr);
+    // bfree(ip->dev, addr);  //not delete root
 }
 
 // Truncate inode (discard contents).
@@ -483,14 +483,6 @@ itrunc(struct inode *ip)
   }
 
   if(ip->addrs[NDIRECT+1]){
-    // bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
-    // a = (uint*)bp->data;
-    // for(j = 0; j < NINDIRECT; j++){
-    //   if(a[j]){
-    //     _itrunc(ip, a[j]);
-    //   }
-    // }
-    // brelse(bp);
     _itrunc(ip, ip->addrs[NDIRECT+1], 2);
     bfree(ip->dev, ip->addrs[NDIRECT+1]);
     ip->addrs[NDIRECT+1] = 0;
