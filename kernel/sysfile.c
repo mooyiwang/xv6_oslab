@@ -484,3 +484,104 @@ sys_pipe(void)
   }
   return 0;
 }
+
+
+uint64
+sys_mmap(void)
+{
+  uint64 addr;
+  int length, prot, flags, fd, offset;
+  struct proc *p = myproc();
+  struct vma *v;
+  struct file *f;
+
+  if(argaddr(0, &addr) < 0 ||
+     argint(1, &length) < 0 ||
+     argint(2, &prot) < 0 ||
+     argint(3, &flags) < 0 ||
+     argint(4, &fd) < 0 ||
+     argint(5, &offset) < 0)
+    return -1;
+
+  if(addr != 0 || offset != 0)
+    return -1;
+
+  f = p->ofile[fd];
+  if((prot & PROT_READ) && !f->readable)
+    return -1;
+  if((prot & PROT_WRITE) && (flags & MAP_SHARED) && !f->writable)
+    return -1;
+  
+  if((PGROUNDDOWN(p->vmabound - length)) < PGROUNDUP(p->sz))
+    return -1;
+  
+  addr = (PGROUNDDOWN(p->vmabound - length));
+  p->vmabound = addr;
+
+  for(int i=0; i<16; i++){
+    if(p->vma[i].valid == 0){
+      v = &(p->vma[i]);
+      goto find;
+    }
+  }
+
+  return -1;
+find:
+  v->valid = 1;
+  v->addr = addr;
+  v->fd = fd;
+  v->length = length;
+  v->fp = f;
+  v->offset = offset;
+  v->flags = (flags == MAP_SHARED)? 1 : 0;
+  v->prot = (((prot & PROT_READ)? PTE_R : 0) | ((prot & PROT_WRITE)? PTE_W : 0) | ((prot & PROT_EXEC)? PTE_X : 0));
+  filedup(f);
+
+  return addr;
+
+}
+
+uint64
+sys_munmap(void)
+{
+  uint64 addr;
+  int length;
+  struct proc *p = myproc();
+  struct vma *v;
+
+
+  if(argaddr(0, &addr) < 0 || argint(1, &length) < 0)
+    return -1;
+  
+  for(int i=0; i<16; i++){
+    if(p->vma[i].valid){
+      v = &(p->vma[i]);
+      if(addr >= v->addr && addr < v->addr + v->length){
+        goto find;
+      }
+    }
+  }
+  
+  return -1;
+find:
+  if(addr + length > v->addr + v->length){
+    length = v->addr + v->length - addr;
+  }
+
+  if(v->flags){
+    filewrite(v->fp, addr, length);
+  }
+
+  uvmunmap_mmap(p->pagetable, addr, (PGROUNDDOWN(addr + length) - addr)/PGSIZE, 1);
+
+  if(addr == v->addr && length == v->length){
+    fileclose(v->fp);
+    v->valid = 0;
+  }
+  else if(addr == v->addr && length < v->length){
+    v->length = v->addr + v->length - PGROUNDDOWN(v->addr + length);
+    v->addr = PGROUNDDOWN(v->addr + length);
+  }
+
+  return 0;
+}

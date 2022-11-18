@@ -68,9 +68,20 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    p->killed = 1;
+
+    uint64 cause = r_scause();
+    uint64 stval = r_stval();
+    int handled = -1;
+    if(cause == 13 || cause == 15){
+      handled = mmap_lazyalloc(cause, stval);
+      // printf("ssss, %d\n", handled);
+    }
+
+    if(handled == -1){
+          printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+          printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+          p->killed = 1;
+    }
   }
 
   if(p->killed)

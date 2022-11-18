@@ -53,6 +53,7 @@ int             readi(struct inode*, int, uint64, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, int, uint64, uint, uint);
 void            itrunc(struct inode*);
+int             mmap_lazyalloc(uint64 cause, uint64 stval);
 
 // ramdisk.c
 void            ramdiskinit(void);
@@ -171,6 +172,7 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
+void            uvmunmap_mmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free);
 
 // plic.c
 void            plicinit(void);

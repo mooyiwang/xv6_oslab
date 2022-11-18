@@ -134,6 +134,11 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  for(int i=0; i<16; i++){
+    p->vma[i].valid = 0;
+  }
+  p->vmabound = MAXVA - 2*PGSIZE;
+
   return p;
 }
 
@@ -302,6 +307,24 @@ fork(void)
 
   np->state = RUNNABLE;
 
+  for(int i=0; i<16; i++){
+    struct vma *nv, *v = &(p->vma[i]);
+    if(v->valid){
+      nv = &(np->vma[i]);
+      nv->addr = v->addr;
+      nv->fd = v->fd;
+      nv->flags = v->flags;
+      nv->fp = v->fp;
+      nv->length = v->length;
+      nv->offset = v->offset;
+      nv->prot = v->prot;
+      nv->valid = v->valid;
+      filedup(nv->fp);
+    }
+  }
+
+  np->vmabound = p->vmabound;
+
   release(&np->lock);
 
   return pid;
@@ -344,6 +367,14 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
+  for(int i=0; i<16; i++){
+    struct vma *v = &(p->vma[i]);
+    if(v->valid){
+      uvmunmap_mmap(p->pagetable, v->addr, (PGROUNDUP(v->addr + v->length) - v->addr)/PGSIZE, 1);
+      fileclose(v->fp);
+    }
+  }
+  
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){

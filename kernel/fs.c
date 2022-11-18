@@ -672,3 +672,58 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+int
+mmap_lazyalloc(uint64 cause, uint64 stval){
+
+  struct proc *p = myproc();
+  struct vma *v;
+  struct file *f;
+  struct inode *ip;
+  uint64 va_start;
+  uint64 file_start;
+
+  for(int i=0; i<16; i++){
+    if(p->vma[i].valid){
+      v = &(p->vma[i]);
+      if(stval >= v->addr && stval < v->addr + v->length){
+        goto find;
+      }
+    }
+  }
+  
+  return -1;
+find:
+  if(cause == 13 && !(v->prot & PTE_R)) return -1;
+  if(cause == 15 && !(v->prot & PTE_W)) return -1;
+
+  va_start = PGROUNDDOWN(stval);
+  file_start = va_start - v->addr;
+  f = v->fp;
+  ip = f->ip;
+
+  char *pa;
+  if((pa = kalloc()) == 0){
+    return -1;
+  }
+
+  memset(pa, 0, PGSIZE);
+
+  ilock(ip);
+  // if(readi(ip, 0, (uint64)pa, file_start, PGSIZE) < PGSIZE){
+  //   kfree(pa);
+  //   iunlock(ip);
+  //   return -1;
+  // }
+  readi(ip, 0, (uint64)pa, file_start, PGSIZE);
+  iunlock(ip);
+
+
+  if(mappages(p->pagetable, va_start, PGSIZE, (uint64)pa, (v->prot | PTE_U)) != 0){
+    kfree(pa);
+    return -1;
+  }
+
+  return 0;
+
+}
